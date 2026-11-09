@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>سباق المعرفة</title>
+<style>
+:root{--a:#facc15}
+*{box-sizing:border-box;font-family:Tahoma,Arial,sans-serif}
+body{margin:0;background:linear-gradient(160deg,#1e1b4b,#4c1d95);color:#fff;min-height:100vh}
+#app{max-width:1100px;margin:auto;padding:14px}
+.c{text-align:center}
+.card{background:#ffffff14;border-radius:18px;padding:18px;margin:12px auto;max-width:520px}
+.card.w{max-width:none}
+input,select,textarea{width:100%;padding:12px;margin:6px 0;border-radius:10px;border:0;font-size:16px}
+.b{background:var(--a);color:#222;border:0;border-radius:12px;padding:12px 20px;font-size:17px;font-weight:700;cursor:pointer;margin:4px}
+.b.s{padding:6px 12px;font-size:14px}.b.r{background:#ef4444;color:#fff}.b.g{background:#ffffff30;color:#fff}
+.big{font-size:64px}.code{font-size:56px;letter-spacing:8px;color:var(--a);font-weight:800}
+.er{color:#fca5a5}.sm{color:#c4b5fd;font-size:14px}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.o{border:0;border-radius:14px;color:#fff;font-size:20px;padding:22px 8px;cursor:pointer;font-weight:700;text-align:center}
+.o:disabled{opacity:.5}.o.ok{outline:5px solid #fff}.o.no{opacity:.35}
+.bar{height:10px;background:#ffffff30;border-radius:9px;overflow:hidden;margin-bottom:12px}
+.bar i{display:block;height:100%;background:var(--a);width:100%}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between;background:#ffffff14;border-radius:10px;padding:8px 12px;margin:5px 0;text-align:right}
+.tr{position:relative;background:#0005;border-radius:14px;margin-top:10px;overflow:hidden;background-image:repeating-linear-gradient(#0000 0 23px,#ffffff12 23px 24px)}
+.pl{position:absolute;height:24px;line-height:24px;white-space:nowrap;font-size:14px;transition:right 1s,top 1s;background:#0007;border-radius:12px;padding:0 8px}
+.hit{animation:sh .6s;background:#ef4444}.hit::after{content:' 💥'}
+@keyframes sh{25%{transform:translateX(-14px)}75%{transform:translateX(14px)}}
+.gate{position:absolute;top:0;bottom:0;width:4px;background:repeating-linear-gradient(#facc15 0 8px,#0000 8px 16px);opacity:.5}
+.fin{position:absolute;left:6px;top:4px;font-size:26px}
+.pod{display:flex;direction:ltr;align-items:flex-end;justify-content:center;gap:10px;margin:20px 0}
+.pod>div{width:28%;border-radius:14px 14px 0 0;padding-top:8px;font-weight:800;font-size:18px;animation:up 1.2s both}
+@keyframes up{from{transform:translateY(120%);opacity:0}}
+.pct{height:10px;border-radius:5px;background:#10b981}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<script>
+// ====== الإعدادات: ضع بيانات مشروعك من Supabase > Settings > API ======
+const SB_URL='https://rdgmlkdhslqtmexfhvgm.supabase.co', SB_KEY='sb_publishable_1GEYHBtvQAAYploRcj7Q4Q_CbIDqY3_';
+// ======================================================================
+const $=s=>document.querySelector(s), app=$('#app');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const AV=['🦊','🐯','🦁','🐼','🐸','🦄','🐙','🦖','🚀','🐲','🦅','🐬'];
+const COL=['#ef4444','#3b82f6','#f59e0b','#10b981'], SH=['▲','◆','●','■'];
+const view=h=>app.innerHTML=h;
+const bind=m=>document.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>m[b.dataset.a](b.dataset.i));
+const boom=()=>{if(!window.confetti)return;const e=Date.now()+6000;(function f(){confetti({particleCount:6,angle:60,spread:70,origin:{x:0}});confetti({particleCount:6,angle:120,spread:70,origin:{x:1}});if(Date.now()<e)requestAnimationFrame(f)})()};
+let db,chan=[],tm;
+const clear=()=>{chan.forEach(c=>db.removeChannel(c));chan=[];clearInterval(tm)};
+const sub=(table,filter,fn)=>chan.push(db.channel(table+Math.random()).on('postgres_changes',{event:'*',schema:'public',table,filter},fn).subscribe());
+
+function route(){
+  if(SB_URL.startsWith('PUT'))return view('<div class="card c"><h2>⚙️ أضف بيانات Supabase في أعلى الكود</h2></div>');
+  clear(); location.hash.startsWith('#/t')?teacher():student();
+}
+
+/* ================= بوابة الطالب ================= */
+function student(){
+  const sv=sessionStorage.getItem('pl'); if(sv)return play(JSON.parse(sv));
+  const c=new URLSearchParams(location.search).get('c')||'';
+  view(`<div class="card c"><div class=big>🏁</div><h1>سباق المعرفة</h1>
+  <input id=code placeholder="رمز اللعبة" inputmode=numeric value="${esc(c)}"><input id=nm placeholder="اسمك" maxlength=20>
+  <button class=b id=go>ادخل السباق</button><p id=er class=er></p><a class=sm href="#/t">دخول المعلم</a></div>`);
+  $('#go').onclick=async()=>{
+    const {data,error}=await db.rpc('join_session',{p_code:$('#code').value.trim(),p_name:$('#nm').value.trim(),p_avatar:AV[Math.random()*AV.length|0]});
+    if(error||data.error)return $('#er').textContent=error?.message||data.error;
+    play(data);
+  };
+}
+
+async function play(p){
+  sessionStorage.setItem('pl',JSON.stringify(p)); clear();
+  let S,answered=-1,last=null;
+  const leave=()=>{sessionStorage.removeItem('pl');clear();student()};
+  const wait=t=>view(`<div class="card c"><div class=big>${p.av}</div><h2>${esc(p.name)}</h2><p>${t}</p></div>`);
+  const render=async()=>{
+    const {data:s}=await db.from('sessions').select('*').eq('id',p.sid).maybeSingle(); S=s;
+    if(!s)return leave();
+    if(s.state=='lobby')wait('انتظر المعلم ليبدأ السباق…');
+    else if(s.state=='question')await showQ();
+    else if(s.state=='reveal')await showRes();
+    else await finish();
+  };
+  const showQ=async()=>{
+    const {data:q}=await db.rpc('get_question',{p_session:p.sid}); if(!q)return;
+    if(answered==q.qi)return wait('تم إرسال إجابتك… انتظر 🏃');
+    const t0=Date.now(), left=q.secs*1000-q.elapsed_ms;
+    view(`<div class=card><div class=bar><i id=tb></i></div><h2 class=c>${esc(q.q)}</h2><div class=g>${q.opts.map((o,i)=>`<button class=o data-i=${i} style="background:${COL[i]}">${SH[i]} ${esc(o)}</button>`).join('')}</div></div>`);
+    clearInterval(tm); tm=setInterval(()=>{const r=left-(Date.now()-t0);const b=$('#tb');if(b)b.style.width=Math.max(0,r/(q.secs*10))+'%';if(r<=0)clearInterval(tm)},100);
+    document.querySelectorAll('.o').forEach(b=>b.onclick=async()=>{
+      document.querySelectorAll('.o').forEach(x=>x.disabled=true); answered=q.qi;
+      const {data}=await db.rpc('submit_answer',{p_player:p.pid,p_choice:+b.dataset.i});
+      last={qi:q.qi,...data}; if(data?.error)return wait(esc(data.error)); wait('تم إرسال إجابتك… انتظر 🏃');
+    });
+  };
+  const showRes=async()=>{
+    clearInterval(tm);
+    const {data:me}=await db.from('players').select('score').eq('id',p.pid).maybeSingle();
+    const r=last&&last.qi==S.qi?last:null;
+    view(`<div class="card c"><div class=big>${!r?'⏰':r.ok?'✅':'❌'}</div><h2>${!r?'لم تجب':r.ok?'إجابة صحيحة +'+r.pts:'إجابة خاطئة'}</h2>${r?.hit?'<p>💥 ضربت المتسابق الذي أمامك!</p>':''}<h3>مجموع نقاطك: ${me?.score??0}</h3><p>انتظر السؤال التالي…</p></div>`);
+  };
+  const finish=async()=>{
+    const {data:L}=await db.from('players').select('id,score').eq('session_id',p.sid).order('score',{ascending:false});
+    const rk=(L||[]).findIndex(x=>x.id==p.pid)+1;
+    view(`<div class="card c"><div class=big>${['','🥇','🥈','🥉'][rk]||'🎖️'}</div><h1>المركز ${rk}</h1><h3>${L?.[rk-1]?.score??0} نقطة</h3><button class=b id=lv>خروج</button></div>`);
+    $('#lv').onclick=leave; if(rk&&rk<=3)boom();
+  };
+  sub('sessions','id=eq.'+p.sid,render); render();
+}
+
+/* ================= لوحة المعلم ================= */
+async function teacher(){
+  clear();
+  const {data:{session}}=await db.auth.getSession();
+  session?dash():login();
+}
+function login(){
+  view(`<div class="card c"><h1>👨‍🏫 لوحة المعلم</h1><input id=em type=email placeholder="البريد الإلكتروني"><input id=pw type=password placeholder="كلمة المرور (6 أحرف فأكثر)">
+  <button class=b id=li>دخول</button><button class="b g" id=su>إنشاء حساب</button><p id=er class=er></p><a class=sm href="#/">صفحة الطلاب</a></div>`);
+  const go=async f=>{const {error}=await db.auth[f]({email:$('#em').value,password:$('#pw').value});error?$('#er').textContent=error.message:teacher()};
+  $('#li').onclick=()=>go('signInWithPassword'); $('#su').onclick=()=>go('signUp');
+}
+async function dash(){
+  const {data:qs}=await db.from('quizzes').select('id,title,questions(count)').order('created_at',{ascending:false});
+  view(`<h1>📚 اختباراتي</h1><div class=card><input id=nt placeholder="عنوان اختبار جديد"><button class=b id=add>+ إنشاء</button><button class="b g" data-a=rp>📊 التقارير</button><button class="b g" data-a=lo>خروج</button></div>`+
+  (qs||[]).map(q=>`<div class=row><b>${esc(q.title)} (${q.questions[0].count})</b><span><button class="b s" data-a=run data-i=${q.id}>▶ تشغيل</button><button class="b s g" data-a=ed data-i=${q.id}>تعديل</button><button class="b s r" data-a=del data-i=${q.id}>حذف</button></span></div>`).join(''));
+  $('#add').onclick=async()=>{const t=$('#nt').value.trim();if(!t)return;const {data}=await db.from('quizzes').insert({title:t}).select().single();editor(data.id)};
+  bind({rp:()=>report(),lo:()=>db.auth.signOut().then(teacher),run,ed:id=>editor(id),del:async id=>{if(confirm('حذف الاختبار نهائياً؟')){await db.from('quizzes').delete().eq('id',id);dash()}}});
+}
+async function editor(id,eid){
+  const [{data:z},{data:qs}]=await Promise.all([db.from('quizzes').select('*').eq('id',id).single(),db.from('questions').select('*').eq('quiz_id',id).order('pos').order('id')]);
+  const e=eid?qs.find(x=>x.id==eid):null;
+  view(`<a class=sm href="#/t" id=bk>← رجوع</a><h2>${esc(z.title)}</h2>
+  <div class=card><textarea id=qt rows=2 placeholder="نص السؤال">${esc(e?.q||'')}</textarea>
+  ${[0,1,2,3].map(i=>`<input class=op placeholder="الخيار ${i+1}${i>1?' (اختياري)':''}" value="${esc(e?.opts[i]||'')}">`).join('')}
+  <select id=cr>${[0,1,2,3].map(i=>`<option value=${i} ${e?.correct==i?'selected':''}>الإجابة الصحيحة: الخيار ${i+1}</option>`).join('')}</select>
+  <input id=sc type=number min=5 max=120 value="${e?.secs||20}"><button class=b id=sv>${e?'حفظ التعديل':'+ إضافة السؤال'}</button><p id=er class=er></p></div>
+  <div class=card><b>استيراد دفعة واحدة</b> <span class=sm>(الصق من Excel أو CSV، كل سطر: السؤال، خيار1، خيار2، خيار3، خيار4، رقم الصحيح، الثواني)</span><textarea id=im rows=4></textarea><button class="b g" id=imp>استيراد</button></div>`+
+  qs.map((x,i)=>`<div class=row><span>${i+1}. ${esc(x.q)}</span><span><button class="b s g" data-a=e data-i=${x.id}>✏️</button><button class="b s r" data-a=d data-i=${x.id}>🗑</button></span></div>`).join(''));
+  const trim=a=>{while(a.length&&!a[a.length-1])a.pop();return a};
+  $('#sv').onclick=async()=>{
+    const q=$('#qt').value.trim(), o=trim([...document.querySelectorAll('.op')].map(x=>x.value.trim())), c=+$('#cr').value;
+    if(!q||o.length<2||o.includes('')||!o[c])return $('#er').textContent='اكتب السؤال وخيارين على الأقل بدون فراغات، والإجابة الصحيحة يجب أن تكون خياراً مكتوباً';
+    const row={quiz_id:id,q,opts:o,correct:c,secs:Math.min(120,Math.max(5,+$('#sc').value||20)),pos:e?e.pos:qs.length};
+    const {error}=e?await db.from('questions').update(row).eq('id',e.id):await db.from('questions').insert(row);
+    error?$('#er').textContent=error.message:editor(id);
+  };
+  $('#imp').onclick=async()=>{
+    const rows=$('#im').value.split('\n').map(l=>l.split(/\t|,/).map(x=>x.trim())).filter(r=>r.length>=4&&r[0]).map((r,i)=>{
+      const o=trim(r.slice(1,5)), c=(parseInt(r[5])||1)-1; return o.length>=2&&o[c]?{quiz_id:id,q:r[0],opts:o,correct:c,secs:Math.min(120,Math.max(5,parseInt(r[6])||20)),pos:qs.length+i}:null}).filter(Boolean);
+    if(!rows.length)return $('#er').textContent='لم يتم العثور على أسطر صالحة';
+    await db.from('questions').insert(rows); editor(id);
+  };
+  bind({e:x=>editor(id,x),d:async x=>{if(confirm('حذف السؤال؟')){await db.from('questions').delete().eq('id',x);editor(id)}}});
+  $('#bk').onclick=()=>setTimeout(teacher);
+}
+
+/* ================= شاشة السباق المباشر (شاشة العرض) ================= */
+async function run(id){
+  const {data:qs}=await db.from('questions').select('*').eq('quiz_id',id).order('pos').order('id');
+  if(!qs.length)return alert('أضف أسئلة أولاً');
+  const {data:s,error}=await db.from('sessions').insert({quiz_id:id,code:String(100000+Math.random()*900000|0),total:qs.length}).select().single();
+  if(error)return alert(error.message);
+  host(s,qs);
+}
+async function host(s,qs){
+  clear(); const P=new Map(), link=location.origin+location.pathname+'?c='+s.code, mx=qs.length*1100, H=26; let ans=0;
+  const {data:ps}=await db.from('players').select('*').eq('session_id',s.id); ps.forEach(p=>P.set(p.id,p));
+  const gates=Array.from({length:qs.length},(_,k)=>`<div class=gate style="right:${(k+1)/qs.length*78+2}%"></div>`).join('')+'<div class=fin>🏁</div>';
+  const draw=hid=>{
+    const t=$('#trk'); if(!t)return;
+    const L=[...P.values()].sort((a,b)=>b.score-a.score||a.name.localeCompare(b.name)); t.style.height=L.length*H+8+'px';
+    L.forEach((p,i)=>{
+      let e=document.getElementById('p'+p.id); if(!e){e=document.createElement('div');e.id='p'+p.id;e.className='pl';t.appendChild(e)}
+      e.textContent=p.avatar+' '+p.name+' · '+p.score; e.style.top=i*H+4+'px'; e.style.right=Math.min(1,p.score/mx)*78+2+'%';
+      if(p.id==hid){e.classList.remove('hit');void e.offsetWidth;e.classList.add('hit');setTimeout(()=>e.classList.remove('hit'),1500)}
+    });
+  };
+  const set=async(st,qi)=>{const {error}=await db.rpc('host_set',{p_session:s.id,p_state:st,p_qi:qi});if(error)return alert(error.message);s.state=st;s.qi=qi;ui()};
+  const end=()=>{if(s.state!='question')return;clearInterval(tm);const q=s.qi;s.state='ending';set('reveal',q)};
+  const next=async()=>{
+    if(s.qi+1>=qs.length)return set('finished',s.qi);
+    ans=0; await set('question',s.qi+1); const t0=Date.now(), q=qs[s.qi];
+    clearInterval(tm); tm=setInterval(()=>{const r=q.secs*1000-(Date.now()-t0);const b=$('#tb'),tt=$('#tt');
+      if(b)b.style.width=Math.max(0,r/(q.secs*10))+'%'; if(tt)tt.textContent=Math.max(0,Math.ceil(r/1000)); if(r<=0)end()},200);
+  };
+  const podium=async()=>{
+    const {data:L}=await db.from('players').select('*').eq('session_id',s.id).order('score',{ascending:false}), t=L.slice(0,3);
+    view(`<div class=c><h1 style="font-size:44px">🏆 الفائزون 🏆</h1><div class=pod>${[1,0,2].map(i=>t[i]?`<div style="height:${[300,220,160][i]}px;background:${['#facc15','#cbd5e1','#d97706'][i]};color:#222"><div style="font-size:44px">${t[i].avatar}</div>${['🥇','🥈','🥉'][i]}<br>${esc(t[i].name)}<br>${t[i].score}</div>`:'<div style="background:none"></div>').join('')}</div>
+    <button class=b data-a=r>📊 التقرير</button><button class="b g" data-a=h>الرئيسية</button></div>`);
+    bind({r:()=>report(s.id),h:teacher}); boom();
+  };
+  const ui=()=>{
+    const q=qs[s.qi]; let h;
+    if(s.state=='lobby')h=`<div class="card w c"><div>ادخلوا من الرابط أو اكتبوا الرمز:<br><b dir=ltr>${esc(link)}</b></div><div class=code>${s.code}</div><b>👥 ${P.size} متسابق</b><div>${[...P.values()].map(p=>`<span class=row style="display:inline-flex">${p.avatar} ${esc(p.name)} <button class="b s r" data-a=k data-i=${p.id}>✖</button></span>`).join(' ')}</div><button class=b data-a=n>🚀 ابدأ السباق</button></div>`;
+    else if(s.state=='question')h=`<div class="card w"><div class=bar><i id=tb></i></div><div style="display:flex;justify-content:space-between"><b>سؤال ${s.qi+1} من ${qs.length}</b><b id=tt style="font-size:28px">${q.secs}</b><b>✋ <span id=an>0/${P.size}</span></b></div><h2 class=c>${esc(q.q)}</h2><div class=g>${q.opts.map((o,i)=>`<div class=o style="background:${COL[i]}">${SH[i]} ${esc(o)}</div>`).join('')}</div><button class="b g" data-a=e>⏭ إنهاء السؤال</button></div>`;
+    else if(s.state=='reveal')h=`<div class="card w"><h3 class=c>${esc(q.q)}</h3><div class=g>${q.opts.map((o,i)=>`<div class="o ${i==q.correct?'ok':'no'}" style="background:${COL[i]}">${SH[i]} ${esc(o)} ${i==q.correct?'✅':''}</div>`).join('')}</div><button class=b data-a=n>${s.qi+1<qs.length?'السؤال التالي ▶':'🏆 النتيجة النهائية'}</button></div>`;
+    else return podium();
+    view(h+'<div class=tr id=trk>'+gates+'</div>'); draw();
+    bind({k:id=>db.from('players').delete().eq('id',id).then(()=>{P.delete(id);ui()}),n:next,e:end});
+  };
+  sub('players','session_id=eq.'+s.id,e=>{
+    const p=e.new; if(!p||!p.id)return; const o=P.get(p.id); P.set(p.id,p);
+    s.state=='lobby'?ui():draw(o&&p.hit>o.hit?p.id:null);
+  });
+  sub('answers','session_id=eq.'+s.id,e=>{
+    if(e.new?.qi!=s.qi)return; ans++; const el=$('#an'); if(el)el.textContent=ans+'/'+P.size;
+    if(s.state=='question'&&P.size&&ans>=P.size)end();
+  });
+  ui();
+}
+
+/* ================= التقارير ================= */
+async function report(sid){
+  if(sid)return detail(sid);
+  const {data:L}=await db.from('sessions').select('id,code,state,created_at,quizzes(title)').order('created_at',{ascending:false}).limit(40);
+  view(`<a class=sm href="#/t" id=bk>← رجوع</a><h1>📊 جلسات اللعب</h1>`+(L.length?L.map(x=>`<div class=row><span>${esc(x.quizzes?.title)} · ${new Date(x.created_at).toLocaleString('ar')}</span><button class="b s" data-a=o data-i=${x.id}>عرض</button></div>`).join(''):'<p>لا توجد جلسات بعد. شغّل اختباراً أولاً.</p>'));
+  bind({o:detail}); $('#bk').onclick=()=>setTimeout(teacher);
+}
+async function detail(sid){
+  const {data:s}=await db.from('sessions').select('*,quizzes(title)').eq('id',sid).single();
+  const [{data:P},{data:A},{data:Q}]=await Promise.all([
+    db.from('players').select('*').eq('session_id',sid).order('score',{ascending:false}),
+    db.from('answers').select('*').eq('session_id',sid),
+    db.from('questions').select('q').eq('quiz_id',s.quiz_id).order('pos').order('id')]);
+  const rows=P.map((p,i)=>{const a=A.filter(x=>x.player_id==p.id),ok=a.filter(x=>x.ok);return{i:i+1,n:p.name,s:p.score,ok:ok.length,bad:Q.length-ok.length,avg:ok.length?(ok.reduce((t,x)=>t+x.ms,0)/ok.length/1000).toFixed(1):'-'}});
+  view(`<a class=sm href="#/t" id=bk>← رجوع</a><h2>${esc(s.quizzes?.title)}</h2><button class=b id=ex>⬇ تصدير Excel (CSV)</button>
+  <h3>الأسئلة الأصعب (نسبة الصحيح)</h3>`+Q.map((q,i)=>{const pc=P.length?Math.round(A.filter(x=>x.qi==i&&x.ok).length*100/P.length):0;return`<div class=row><span style="flex:1">${i+1}. ${esc(q.q)}</span><span style="width:40%"><div class=pct style="width:${pc}%;background:${pc<50?'#ef4444':'#10b981'}"></div></span><b>${pc}%</b></div>`}).join('')+
+  `<h3>الطلاب</h3>`+rows.map(r=>`<div class=row><span>${r.i}. ${esc(r.n)}</span><span>${r.s} نقطة · صحيح ${r.ok} · خطأ ${r.bad} · متوسط ${r.avg}ث</span></div>`).join(''));
+  $('#bk').onclick=()=>setTimeout(()=>report());
+  $('#ex').onclick=()=>{
+    const csv='\ufeff'+['الترتيب,الاسم,النقاط,صحيح,خطأ,متوسط زمن الصحيح (ث)',...rows.map(r=>[r.i,'"'+r.n.replace(/"/g,'""')+'"',r.s,r.ok,r.bad,r.avg].join(','))].join('\n');
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='results.csv';a.click();
+  };
+}
+
+if(!SB_URL.startsWith('PUT'))db=supabase.createClient(SB_URL,SB_KEY);
+addEventListener('hashchange',route); route();
+</script>
+</body>
+</html>
