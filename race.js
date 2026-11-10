@@ -1,3 +1,21 @@
+/* ===== الأصوات (مولَّدة بالكود، بلا ملفات) ===== */
+const AUD=(()=>{
+  let c,m,on=true,mi,st=0,want=false;
+  const g=()=>{if(!c){try{c=new(window.AudioContext||window.webkitAudioContext)();m=c.createGain();m.gain.value=.6;m.connect(c.destination)}catch(e){return null}}if(c.state=='suspended')c.resume();return c};
+  const n=(f,t,d,v,at=0,f2)=>{const x=g();if(!x||!on)return;const o=x.createOscillator(),e=x.createGain(),s=x.currentTime+at;o.type=t;o.frequency.setValueAtTime(f,s);if(f2)o.frequency.exponentialRampToValueAtTime(f2,s+d);e.gain.setValueAtTime(v,s);e.gain.exponentialRampToValueAtTime(.001,s+d);o.connect(e);e.connect(m);o.start(s);o.stop(s+d)};
+  const ns=(d,v,a,b)=>{const x=g();if(!x||!on)return;const l=x.sampleRate*d|0,B=x.createBuffer(1,l,x.sampleRate),D=B.getChannelData(0);for(let i=0;i<l;i++)D[i]=Math.random()*2-1;
+    const s=x.createBufferSource(),f=x.createBiquadFilter(),e=x.createGain(),t=x.currentTime;s.buffer=B;f.type='bandpass';f.frequency.setValueAtTime(a,t);f.frequency.exponentialRampToValueAtTime(b,t+d);e.gain.setValueAtTime(v,t);e.gain.exponentialRampToValueAtTime(.001,t+d);s.connect(f);f.connect(e);e.connect(m);s.start()};
+  const S={start:()=>{n(660,'sine',.12,.25);n(990,'sine',.18,.25,.12)},ok:()=>{n(523,'triangle',.12,.3);n(784,'triangle',.25,.3,.1)},bad:()=>n(220,'sawtooth',.35,.2,0,90),
+    nitro:()=>ns(.8,.5,300,3500),hit:()=>{ns(.4,.8,1500,100);n(100,'square',.3,.3,0,40)},
+    win:()=>[523,659,784,1047,1319].forEach((f,i)=>n(f,'triangle',.3,.3,i*.14)),lose:()=>[392,330,262].forEach((f,i)=>n(f,'triangle',.5,.3,i*.28))};
+  const bass=[55,55,82.4,55,65.4,65.4,98,65.4],arp=[220,262,330,262,196,247,294,247];
+  const go=()=>{clearInterval(mi);if(want&&on)mi=setInterval(()=>{const i=st++%8;n(bass[i],'sawtooth',.22,.07);n(arp[i],'square',.14,.035)},240)};
+  return{init:g,sfx:k=>S[k]&&S[k](),get on(){return on},mute:v=>{on=v;go()},music:v=>{want=v;go()}};
+})();
+addEventListener('pointerdown',()=>AUD.init());
+document.body.insertAdjacentHTML('beforeend','<button id=mu class="b s g" style="position:fixed;left:8px;top:8px;z-index:9">🔊</button>');
+$('#mu').onclick=e=>{AUD.mute(!AUD.on);e.target.textContent=AUD.on?'🔊':'🔇'};
+
 /* ===== سباق السيارات: المضمارات + الرسم + المتجر + واجهة الطالب + شاشة المعلم ===== */
 const TR=[
  {n:'صحراء الذهب',bg:'#d7b27a',ro:'#3b3b40',sc:'#a8743a',p:[[200,300],[300,120],[550,80],[800,150],[880,300],[780,470],[520,520],[300,470]]},
@@ -17,7 +35,7 @@ const sync=async()=>{const a=Date.now(),{data}=await db.rpc('now_s');OFF=data*10
 const nowS=()=>(Date.now()+OFF)/1000;
 
 function build(i){
-  const T=TR[i]||TR[0]; if(T.pts)return T; const P=T.p,n=P.length,pts=[];
+  const T=TR[i]||TR[0]; if(T.pts)return T; const P=T.p.map(a=>[a[0]*1.3,a[1]*1.3]),n=P.length,pts=[];
   for(let k=0;k<n;k++){const a=P[(k+n-1)%n],b=P[k],c=P[(k+1)%n],e=P[(k+2)%n];
     for(let j=0;j<40;j++){const t=j/40,t2=t*t,t3=t2*t;
       pts.push([0,1].map(d=>.5*(2*b[d]+(-a[d]+c[d])*t+(2*a[d]-5*b[d]+4*c[d]-e[d])*t2+(-a[d]+3*b[d]-3*c[d]+e[d])*t3)))}}
@@ -26,16 +44,28 @@ function build(i){
   T.pts=pts;T.cum=cum;T.L=L;T.path=new Path2D();
   pts.forEach((p,k)=>k?T.path.lineTo(p[0],p[1]):T.path.moveTo(p[0],p[1]));T.path.closePath();
   T.sc2=[];let s=7;const r=()=>(s=s*16807%2147483647)/2147483647;
-  for(let k=0;k<pts.length;k+=5){const a=pts[k],b=pts[(k+1)%pts.length],an=Math.atan2(b[1]-a[1],b[0]-a[0])+Math.PI/2,o=(r()<.5?-1:1)*(85+r()*90);T.sc2.push([a[0]+Math.cos(an)*o,a[1]+Math.sin(an)*o,3+r()*5])}
+  for(let k=0;k<pts.length;k+=5){const a=pts[k],b=pts[(k+1)%pts.length],an=Math.atan2(b[1]-a[1],b[0]-a[0])+Math.PI/2,o=(r()<.5?-1:1)*(125+r()*150);T.sc2.push([a[0]+Math.cos(an)*o,a[1]+Math.sin(an)*o,3+r()*5])}
   return T;
 }
-function at(T,s){
+function pt(T,s){
   s=((s%T.L)+T.L)%T.L;let lo=0,hi=T.cum.length-2;
   while(lo<hi){const m=(lo+hi+1)>>1;T.cum[m]<=s?lo=m:hi=m-1}
   const a=T.pts[lo],b=T.pts[(lo+1)%T.pts.length],f=(s-T.cum[lo])/((T.cum[lo+1]-T.cum[lo])||1);
   return[a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f,Math.atan2(b[1]-a[1],b[0]-a[0])];
 }
 
+function paint(c,T){
+  c.fillStyle=T.bg;c.fillRect(0,0,1300,830);
+  c.fillStyle=T.sc;c.globalAlpha=.8;T.sc2.forEach(z=>{c.beginPath();c.arc(z[0],z[1],z[2]*2,0,7);c.fill()});c.globalAlpha=1;c.lineJoin='round';
+  c.strokeStyle='#f5f5f5';c.lineWidth=166;c.stroke(T.path);
+  c.strokeStyle='#dc2626';c.setLineDash([26,26]);c.stroke(T.path);c.setLineDash([]);
+  c.strokeStyle=T.ro;c.lineWidth=150;c.stroke(T.path);
+  c.strokeStyle='#ffffff55';c.lineWidth=3;c.setLineDash([18,26]);c.stroke(T.path);c.setLineDash([]);
+  const st=pt(T,0);c.save();c.translate(st[0],st[1]);c.rotate(st[2]);
+  for(let i=0;i<8;i++)for(let j=0;j<2;j++){c.fillStyle=(i+j)%2?'#111':'#fff';c.fillRect(j*8-8,i*18.75-75,8,18.75)}c.restore();
+}
+function stat(T){if(T.cv)return;const S=1.5,cv=document.createElement('canvas');cv.width=1300*S;cv.height=830*S;const c=cv.getContext('2d');c.scale(S,S);paint(c,T);T.cv=cv}
+function at(T,s){const q=pt(T,s),u=pt(T,s-14),v=pt(T,s+14);return[q[0],q[1],Math.atan2(v[1]-u[1],v[0]-u[0])]}
 /* رسم السيارة (منظر علوي) */
 function car(c,x,y,a,col,id,o={}){
   const M=CARS[id]||CARS[0],L=M.L,W=M.W;
@@ -63,18 +93,11 @@ function render(c,W,H,T,P,t,o){
   const d=o.d||1;c.setTransform(1,0,0,1,0,0);c.fillStyle=T.bg;c.fillRect(0,0,W,H);
   const ps=[...P.values()].map(p=>({p,s:pos(p,t)})).sort((a,b)=>b.s-a.s),me=o.follow&&ps.find(z=>z.p.id==o.follow);
   let k;
-  if(me){const q=at(T,me.s);k=W/340;c.translate(W/2,H*.7);c.rotate(-q[2]-Math.PI/2);c.scale(k,k);c.translate(-q[0],-q[1])}
-  else{k=Math.min(W/1000,H/640);c.translate((W-1000*k)/2,(H-640*k)/2);c.scale(k,k)}
-  c.fillStyle=T.sc;c.globalAlpha=.8;T.sc2.forEach(z=>{c.beginPath();c.arc(z[0],z[1],z[2]*2,0,7);c.fill()});c.globalAlpha=1;
-  c.lineJoin='round';
-  c.strokeStyle='#f5f5f5';c.lineWidth=108;c.stroke(T.path);
-  c.strokeStyle='#dc2626';c.setLineDash([22,22]);c.stroke(T.path);c.setLineDash([]);
-  c.strokeStyle=T.ro;c.lineWidth=94;c.stroke(T.path);
-  c.strokeStyle='#ffffff66';c.lineWidth=2.5;c.setLineDash([16,22]);c.stroke(T.path);c.setLineDash([]);
-  const st=at(T,0);c.save();c.translate(st[0],st[1]);c.rotate(st[2]);
-  for(let i=0;i<8;i++)for(let j=0;j<2;j++){c.fillStyle=(i+j)%2?'#111':'#fff';c.fillRect(j*6-6,i*11.75-47,6,11.75)}c.restore();
+  if(me){const q=at(T,me.s);k=W/400;c.translate(W/2,H*.7);c.rotate(-q[2]-Math.PI/2);c.scale(k,k);c.translate(-q[0],-q[1])}
+  else{k=Math.min(W/1300,H/830);c.translate((W-1300*k)/2,(H-830*k)/2);c.scale(k,k)}
+  stat(T);c.drawImage(T.cv,0,0,1300,830);
   ps.slice().reverse().forEach(z=>{
-    const p=z.p,q=at(T,z.s),off=((p.lane??2)-2)*16,x=q[0]+Math.cos(q[2]+Math.PI/2)*off,y=q[1]+Math.sin(q[2]+Math.PI/2)*off,slow=t<p.su;
+    const p=z.p,q=at(T,z.s),off=((p.lane??2)-2)*26,x=q[0]+Math.cos(q[2]+Math.PI/2)*off,y=q[1]+Math.sin(q[2]+Math.PI/2)*off,slow=t<p.su;
     if(slow){c.fillStyle='#ef444466';c.beginPath();c.arc(x,y,20+Math.sin(t*20)*4,0,7);c.fill()}
     c.globalAlpha=slow&&((t*12|0)%2)?.25:1;
     car(c,x,y,q[2],p.car?.c||'#888',p.car?.id||0,{boost:t<p.bu,me:p.id==o.follow});c.globalAlpha=1;
@@ -102,13 +125,19 @@ function student(){
   const c=new URLSearchParams(location.search).get('c')||'';
   view(`<div class="card c"><div class=big>🏎️</div><h1>سباق المعرفة</h1>
   <input id=nm placeholder="اسمك" maxlength=20><input id=pin placeholder="رمز سري من 4 أرقام (اخترعه أول مرة وتذكره)" inputmode=numeric maxlength=4>
-  <input id=code placeholder="رمز اللعبة" inputmode=numeric value="${esc(c)}">
-  <button class=b id=go>ادخل السباق</button><button class="b g" id=sh>🏪 الكراج والمتجر</button><p id=er class=er></p><a class=sm href="#/t">دخول المعلم</a></div>`);
+  <input id=code placeholder="رمز اللعبة (للمسابقة الجماعية)" inputmode=numeric value="${esc(c)}">
+  <button class=b id=go>ادخل السباق</button><button class="b g" id=so>🎯 تدريب فردي</button><button class="b g" id=sh>🏪 الكراج والمتجر</button><p id=er class=er></p><a class=sm href="#/t">دخول المعلم</a></div>`);
   const nm=()=>$('#nm').value.trim(),pn=()=>$('#pin').value.trim();
   $('#go').onclick=async()=>{const {data,error}=await db.rpc('join_session',{p_code:$('#code').value.trim(),p_name:nm(),p_pin:pn()});
     if(error||data?.error)return $('#er').textContent=error?.message||data.error;play(data)};
   $('#sh').onclick=async()=>{const {data,error}=await db.rpc('shop',{p_name:nm(),p_pin:pn(),p_act:'get',p_car:0,p_arg:''});
     error?$('#er').textContent=error.message:shopUI({name:nm(),pin:pn()},data)};
+  $('#so').onclick=async()=>{
+    const N=nm(),K=pn();if(!N||!/^\d{4}$/.test(K))return $('#er').textContent='اكتب اسمك ورمزك السري (4 أرقام) أولاً';
+    const {data,error}=await db.rpc('practice_list');if(error)return $('#er').textContent=error.message;
+    view(`<div class="card c"><h2>🎯 بنك الاختبارات</h2><p class=sm>اختر أي اختبار وتدرّب وحدك ضد منافسين آليين. تكسب 5 🪙 لكل إجابة صحيحة (حتى 100 يومياً)</p>${(data||[]).map(q=>`<div class=row><span>${esc(q.title)} (${q.n} سؤال)</span><button class="b s" data-a=go data-i=${q.id}>ابدأ</button></div>`).join('')||'<p>لا توجد اختبارات متاحة حالياً</p>'}<button class="b g" data-a=bk>رجوع</button></div>`);
+    bind({go:async id=>{const {data:d,error:e}=await db.rpc('start_solo',{p_name:N,p_pin:K,p_quiz:id});if(e||d?.error)return alert(e?.message||d.error);play({...d,solo:true})},bk:student});
+  };
 }
 function shopUI(u,f,msg){
   const g=f.garage[f.sel],act=async(a,car,arg)=>{const {data,error}=await db.rpc('shop',{p_name:u.name,p_pin:u.pin,p_act:a,p_car:car,p_arg:arg||''});error?shopUI(u,f,error.message):shopUI(u,data)};
@@ -125,24 +154,25 @@ function shopUI(u,f,msg){
 
 /* ================= لعب الطالب ================= */
 async function play(p){
-  sessionStorage.setItem('pl',JSON.stringify(p));clear();await sync();
+  sessionStorage.setItem('pl',JSON.stringify(p));clear();await sync();AUD.music(true);
   let S,answered=-1,cq=-1;const P=new Map();
   const leave=()=>{sessionStorage.removeItem('pl');clear();student()};
   view(`<canvas id=cv style="width:100%;height:42vh;border-radius:14px;display:block"></canvas><div id=q></div>`);
   const ui=h=>{const e=$('#q');if(e)e.innerHTML=h},wait=t=>ui(`<div class="card c"><h3>${esc(p.name)}</h3><p>${t}</p></div>`);
   const {data:ps}=await db.from('players').select('*').eq('session_id',p.sid);(ps||[]).forEach(x=>P.set(x.id,x));
   loop($('#cv'),()=>S&&build(S.track),P,{follow:p.pid});
-  sub('players','session_id=eq.'+p.sid,e=>{if(e.new?.id)P.set(e.new.id,e.new)});
+  sub('players','session_id=eq.'+p.sid,e=>{const n=e.new;if(!n?.id)return;const o=P.get(n.id);if(o&&n.id==p.pid&&n.hit>o.hit)AUD.sfx('hit');P.set(n.id,n)});
   const send=async(q,ch,m)=>{
     answered=q.qi;clearInterval(tm);wait('تم إرسال إجابتك… 🏎️');
     const {data}=await db.rpc('submit_answer',{p_player:p.pid,p_choice:ch,p_qi:q.qi,p_map:m});
-    if(data?.error&&cq==q.qi)wait(esc(data.error));
+    if(data?.error){if(cq==q.qi)wait(esc(data.error))}else if(data){AUD.sfx(data.ok?'ok':'bad');if(data.boost)AUD.sfx('nitro');if(data.hit)AUD.sfx('hit');if(cq==q.qi)wait(data.ok?'✅ إجابة صحيحة!':'❌ إجابة خاطئة')}
+    if(p.solo)await db.rpc('solo_next',{p_player:p.pid,p_qi:q.qi});
   };
   const showQ=async()=>{
     const {data:q}=await db.rpc('get_question',{p_session:p.sid});if(!q)return;
-    cq=q.qi;if(answered==q.qi)return wait('تم إرسال إجابتك… 🏎️');
+    if(cq!=q.qi)AUD.sfx('start');cq=q.qi;if(answered==q.qi)return wait('تم إرسال إجابتك… 🏎️');
     const t0=Date.now(),left=q.secs*1000-q.elapsed_ms,bar='<div class=bar><i id=tb></i></div>';
-    clearInterval(tm);tm=setInterval(()=>{const r=left-(Date.now()-t0),b=$('#tb');if(b)b.style.width=Math.max(0,r/(q.secs*10))+'%';if(r<=0)clearInterval(tm)},100);
+    clearInterval(tm);tm=setInterval(()=>{const r=left-(Date.now()-t0),b=$('#tb');if(b)b.style.width=Math.max(0,r/(q.secs*10))+'%';if(r<=0){clearInterval(tm);if(p.solo&&answered!=q.qi)db.rpc('solo_next',{p_player:p.pid,p_qi:q.qi})}},100);
     if(q.kind!='match'){
       ui(`<div class=card>${bar}<h3 class=c>${esc(q.q)}</h3><div class=g>${q.opts.map((o,i)=>`<button class=o data-i=${i} style="background:${COL[i]};padding:16px 6px;font-size:18px">${SH[i]} ${esc(o)}</button>`).join('')}</div></div>`);
       document.querySelectorAll('.o').forEach(b=>b.onclick=()=>{document.querySelectorAll('.o').forEach(x=>x.disabled=true);send(q,+b.dataset.i,null)});
@@ -161,11 +191,11 @@ async function play(p){
     const [{data:L},{data:R}]=await Promise.all([db.from('players').select('id').eq('session_id',p.sid).order('d0',{ascending:false}),db.rpc('my_review',{p_player:p.pid})]),rk=(L||[]).findIndex(x=>x.id==p.pid)+1;
     view(`<div class="card c"><div class=big>${['','🥇','🥈','🥉'][rk]||'🏁'}</div><h1>المركز ${rk}</h1>${rk&&rk<=3?`<h3>+${[300,200,100][rk-1]} 🪙 مكافأة</h3>`:''}<button class=b id=lv>خروج</button></div>
     <div class=card><h3 class=c>📝 مراجعة أخطائك</h3>${R?.length?R.map(x=>`<div class=row style="display:block"><b>${esc(x.q)}</b><br>${x.kind!='match'?`<span class=er>${x.mine?'إجابتك: '+esc(x.mine):'لم تجب'}</span><br>`:''}<span>✅ الصحيح: ${esc(x.right)}</span></div>`).join(''):'<p class=c>ما شاء الله، لا أخطاء! 🌟</p>'}</div>`);
-    $('#lv').onclick=leave;if(rk&&rk<=3)boom();
+    $('#lv').onclick=leave;AUD.sfx(rk&&rk<=3?'win':'lose');if(rk&&rk<=3)boom();
   };
   const upd=async()=>{
     const {data:s}=await db.from('sessions').select('*').eq('id',p.sid).maybeSingle();S=s;if(!s)return leave();
-    if(s.state=='lobby')wait('انتظر المعلم ليبدأ السباق 🏁 سيارتك على خط البداية');
+    if(s.state=='lobby'){if(p.solo)await db.rpc('solo_next',{p_player:p.pid,p_qi:-1});else wait('انتظر المعلم ليبدأ السباق 🏁 سيارتك على خط البداية')}
     else if(s.state=='question')await showQ();else await finish();
   };
   sub('sessions','id=eq.'+p.sid,upd);upd();
@@ -184,7 +214,7 @@ async function run(id){
   }});
 }
 async function host(s,qs){
-  clear();await sync();const P=new Map(),link=location.origin+location.pathname+'?c='+s.code;let ans=0;
+  clear();await sync();AUD.music(true);const P=new Map(),link=location.origin+location.pathname+'?c='+s.code;let ans=0;
   const {data:ps}=await db.from('players').select('*').eq('session_id',s.id);(ps||[]).forEach(p=>P.set(p.id,p));
   view(`<div id=top></div><canvas id=cv style="width:100%;height:60vh;border-radius:14px;display:block;margin-top:8px"></canvas>`);
   loop($('#cv'),()=>build(s.track),P,{names:1});
@@ -193,7 +223,7 @@ async function host(s,qs){
   const next=async()=>{
     if(busy)return;busy=true;clearInterval(tm);
     if(s.qi+1>=qs.length){await set('finished',s.qi);busy=false;return}
-    ans=0;await set('question',s.qi+1);busy=false;const t0=Date.now(),q=qs[s.qi];
+    ans=0;await set('question',s.qi+1);busy=false;AUD.sfx('start');const t0=Date.now(),q=qs[s.qi];
     tm=setInterval(()=>{const r=q.secs*1000-(Date.now()-t0),b=$('#tb'),tt=$('#tt');
       if(b)b.style.width=Math.max(0,r/(q.secs*10))+'%';if(tt)tt.textContent=Math.max(0,Math.ceil(r/1000));if(r<=0)next()},200);
   };
@@ -203,7 +233,7 @@ async function host(s,qs){
     view(`<div class=c><h1 style="font-size:44px">🏆 الفائزون 🏆</h1><div class=pod>${[1,0,2].map(i=>t[i]?`<div style="height:${[300,220,160][i]}px;background:${['#facc15','#cbd5e1','#d97706'][i]};color:#222"><canvas data-c=${i} width=120 height=60></canvas><br>${['🥇','🥈','🥉'][i]}<br>${esc(t[i].name)}<br>+${[300,200,100][i]} 🪙</div>`:'<div style="background:none"></div>').join('')}</div>
     <button class=b data-a=r>📊 التقرير</button><button class="b g" data-a=h>الرئيسية</button></div>`);
     document.querySelectorAll('[data-c]').forEach(cv=>{const i=+cv.dataset.c,c=cv.getContext('2d');c.translate(60,30);c.scale(2,2);car(c,0,0,0,t[i].car?.c||'#888',t[i].car?.id||0,{})});
-    bind({r:()=>report(s.id),h:teacher});boom();
+    bind({r:()=>report(s.id),h:teacher});AUD.sfx('win');boom();
   };
   const ui=()=>{
     const q=qs[s.qi];let h;
@@ -214,7 +244,7 @@ async function host(s,qs){
     $('#top').innerHTML=h;
     bind({k:id=>db.from('players').delete().eq('id',id).then(()=>{P.delete(id);ui()}),n:next,f:fin});
   };
-  sub('players','session_id=eq.'+s.id,e=>{const p=e.new;if(!p?.id)return;P.set(p.id,p);if(s.state=='lobby')ui()});
+  sub('players','session_id=eq.'+s.id,e=>{const p=e.new;if(!p?.id)return;const o=P.get(p.id);if(o&&p.hit>o.hit)AUD.sfx('hit');if(o&&p.bu>o.bu)AUD.sfx('nitro');P.set(p.id,p);if(s.state=='lobby')ui()});
   sub('answers','session_id=eq.'+s.id,e=>{
     if(e.new?.qi!=s.qi)return;ans++;const el=$('#an');if(el)el.textContent=ans+'/'+P.size;
     if(s.state=='question'&&P.size&&ans>=P.size)next();
