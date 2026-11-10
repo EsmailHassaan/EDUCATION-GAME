@@ -60,60 +60,6 @@ function route(){
   clear(); location.hash.startsWith('#/t')?teacher():student();
 }
 
-/* ================= بوابة الطالب ================= */
-function student(){
-  const sv=sessionStorage.getItem('pl'); if(sv)return play(JSON.parse(sv));
-  const c=new URLSearchParams(location.search).get('c')||'';
-  view(`<div class="card c"><div class=big>🏁</div><h1>سباق المعرفة</h1>
-  <input id=code placeholder="رمز اللعبة" inputmode=numeric value="${esc(c)}"><input id=nm placeholder="اسمك" maxlength=20>
-  <button class=b id=go>ادخل السباق</button><p id=er class=er></p><a class=sm href="#/t">دخول المعلم</a></div>`);
-  $('#go').onclick=async()=>{
-    const {data,error}=await db.rpc('join_session',{p_code:$('#code').value.trim(),p_name:$('#nm').value.trim(),p_avatar:AV[Math.random()*AV.length|0]});
-    if(error||data.error)return $('#er').textContent=error?.message||data.error;
-    play(data);
-  };
-}
-
-async function play(p){
-  sessionStorage.setItem('pl',JSON.stringify(p)); clear();
-  let S,answered=-1,last=null;
-  const leave=()=>{sessionStorage.removeItem('pl');clear();student()};
-  const wait=t=>view(`<div class="card c"><div class=big>${p.av}</div><h2>${esc(p.name)}</h2><p>${t}</p></div>`);
-  const render=async()=>{
-    const {data:s}=await db.from('sessions').select('*').eq('id',p.sid).maybeSingle(); S=s;
-    if(!s)return leave();
-    if(s.state=='lobby')wait('انتظر المعلم ليبدأ السباق…');
-    else if(s.state=='question')await showQ();
-    else if(s.state=='reveal')await showRes();
-    else await finish();
-  };
-  const showQ=async()=>{
-    const {data:q}=await db.rpc('get_question',{p_session:p.sid}); if(!q)return;
-    if(answered==q.qi)return wait('تم إرسال إجابتك… انتظر 🏃');
-    const t0=Date.now(), left=q.secs*1000-q.elapsed_ms;
-    view(`<div class=card><div class=bar><i id=tb></i></div><h2 class=c>${esc(q.q)}</h2><div class=g>${q.opts.map((o,i)=>`<button class=o data-i=${i} style="background:${COL[i]}">${SH[i]} ${esc(o)}</button>`).join('')}</div></div>`);
-    clearInterval(tm); tm=setInterval(()=>{const r=left-(Date.now()-t0);const b=$('#tb');if(b)b.style.width=Math.max(0,r/(q.secs*10))+'%';if(r<=0)clearInterval(tm)},100);
-    document.querySelectorAll('.o').forEach(b=>b.onclick=async()=>{
-      document.querySelectorAll('.o').forEach(x=>x.disabled=true); answered=q.qi;
-      const {data}=await db.rpc('submit_answer',{p_player:p.pid,p_choice:+b.dataset.i});
-      last={qi:q.qi,...data}; if(data?.error)return wait(esc(data.error)); wait('تم إرسال إجابتك… انتظر 🏃');
-    });
-  };
-  const showRes=async()=>{
-    clearInterval(tm);
-    const {data:me}=await db.from('players').select('score').eq('id',p.pid).maybeSingle();
-    const r=last&&last.qi==S.qi?last:null;
-    view(`<div class="card c"><div class=big>${!r?'⏰':r.ok?'✅':'❌'}</div><h2>${!r?'لم تجب':r.ok?'إجابة صحيحة +'+r.pts:'إجابة خاطئة'}</h2>${r?.hit?'<p>💥 ضربت المتسابق الذي أمامك!</p>':''}<h3>مجموع نقاطك: ${me?.score??0}</h3><p>انتظر السؤال التالي…</p></div>`);
-  };
-  const finish=async()=>{
-    const {data:L}=await db.from('players').select('id,score').eq('session_id',p.sid).order('score',{ascending:false});
-    const rk=(L||[]).findIndex(x=>x.id==p.pid)+1;
-    view(`<div class="card c"><div class=big>${['','🥇','🥈','🥉'][rk]||'🎖️'}</div><h1>المركز ${rk}</h1><h3>${L?.[rk-1]?.score??0} نقطة</h3><button class=b id=lv>خروج</button></div>`);
-    $('#lv').onclick=leave; if(rk&&rk<=3)boom();
-  };
-  sub('sessions','id=eq.'+p.sid,render); render();
-}
-
 /* ================= لوحة المعلم ================= */
 async function teacher(){
   clear();
@@ -135,85 +81,41 @@ async function dash(){
 }
 async function editor(id,eid){
   const [{data:z},{data:qs}]=await Promise.all([db.from('quizzes').select('*').eq('id',id).single(),db.from('questions').select('*').eq('quiz_id',id).order('pos').order('id')]);
-  const e=eid?qs.find(x=>x.id==eid):null;
+  const e=eid?qs.find(x=>x.id==eid):null,K=e?.kind||'mc',pr=K=='match'?e.opts:[],BD={mc:'',tf:'[صح/خطأ] ',fill:'[فراغ] ',match:'[توصيل] '};
   view(`<a class=sm href="#/t" id=bk>← رجوع</a><h2>${esc(z.title)}</h2>
-  <div class=card><textarea id=qt rows=2 placeholder="نص السؤال">${esc(e?.q||'')}</textarea>
-  ${[0,1,2,3].map(i=>`<input class=op placeholder="الخيار ${i+1}${i>1?' (اختياري)':''}" value="${esc(e?.opts[i]||'')}">`).join('')}
-  <select id=cr>${[0,1,2,3].map(i=>`<option value=${i} ${e?.correct==i?'selected':''}>الإجابة الصحيحة: الخيار ${i+1}</option>`).join('')}</select>
-  <input id=sc type=number min=5 max=120 value="${e?.secs||20}"><button class=b id=sv>${e?'حفظ التعديل':'+ إضافة السؤال'}</button><p id=er class=er></p></div>
-  <div class=card><b>استيراد دفعة واحدة</b> <span class=sm>(الصق من Excel أو CSV، كل سطر: السؤال، خيار1، خيار2، خيار3، خيار4، رقم الصحيح، الثواني)</span><textarea id=im rows=4></textarea><button class="b g" id=imp>استيراد</button></div>`+
-  qs.map((x,i)=>`<div class=row><span>${i+1}. ${esc(x.q)}</span><span><button class="b s g" data-a=e data-i=${x.id}>✏️</button><button class="b s r" data-a=d data-i=${x.id}>🗑</button></span></div>`).join(''));
-  const trim=a=>{while(a.length&&!a[a.length-1])a.pop();return a};
+  <div class=card><select id=kd>${[['mc','اختيار من متعدد'],['tf','صح أو خطأ'],['fill','أكمل الفراغ (3 كلمات)'],['match','توصيل']].map(a=>`<option value=${a[0]} ${K==a[0]?'selected':''}>${a[1]}</option>`).join('')}</select>
+  <textarea id=qt rows=2 placeholder="نص السؤال (في الفراغ اكتب ___ مكان الكلمة الناقصة)">${esc(e?.q||'')}</textarea>
+  <div id=ops>${[0,1,2,3].map(i=>`<input class=op placeholder="الخيار ${i+1}" value="${esc(K=='mc'||K=='fill'?e?.opts[i]||'':'')}">`).join('')}</div>
+  <div id=prs>${[0,1,2,3].map(i=>`<div style="display:flex;gap:6px"><input placeholder="العنصر ${i+1}" value="${esc(pr[i]?.[0]||'')}"><input placeholder="ما يقابله" value="${esc(pr[i]?.[1]||'')}"></div>`).join('')}</div>
+  <select id=cr></select><input id=sc type=number min=5 max=120 value="${e?.secs||20}" title="الثواني">
+  <button class=b id=sv>${e?'حفظ التعديل':'+ إضافة السؤال'}</button><p id=er class=er></p></div>
+  <div class=card><b>استيراد دفعة واحدة (اختيار من متعدد)</b> <span class=sm>(الصق من Excel أو CSV، كل سطر: السؤال، خيار1، خيار2، خيار3، خيار4، رقم الصحيح، الثواني)</span><textarea id=im rows=4></textarea><button class="b g" id=imp>استيراد</button></div>`+
+  qs.map((x,i)=>`<div class=row><span>${i+1}. ${BD[x.kind]||''}${esc(x.q)}</span><span><button class="b s g" data-a=e data-i=${x.id}>✏️</button><button class="b s r" data-a=d data-i=${x.id}>🗑</button></span></div>`).join(''));
+  const trim=a=>{while(a.length&&!a[a.length-1])a.pop();return a},err=m=>$('#er').textContent=m;
+  const fix=()=>{const k=$('#kd').value,n=k=='tf'?2:k=='fill'?3:4,cur=Math.min(n-1,+($('#cr').value||(e&&K==k?e.correct:0)));
+    $('#ops').hidden=!(k=='mc'||k=='fill');$('#prs').hidden=k!='match';$('#cr').hidden=k=='match';
+    $('#cr').innerHTML=Array.from({length:n},(_,i)=>`<option value=${i} ${i==cur?'selected':''}>الإجابة الصحيحة: ${k=='tf'?['صح','خطأ'][i]:'الخيار '+(i+1)}</option>`).join('')};
+  $('#kd').onchange=fix;fix();
   $('#sv').onclick=async()=>{
-    const q=$('#qt').value.trim(), o=trim([...document.querySelectorAll('.op')].map(x=>x.value.trim())), c=+$('#cr').value;
-    if(!q||o.length<2||o.includes('')||!o[c])return $('#er').textContent='اكتب السؤال وخيارين على الأقل بدون فراغات، والإجابة الصحيحة يجب أن تكون خياراً مكتوباً';
-    const row={quiz_id:id,q,opts:o,correct:c,secs:Math.min(120,Math.max(5,+$('#sc').value||20)),pos:e?e.pos:qs.length};
+    const k=$('#kd').value,q=$('#qt').value.trim();let o,c=+$('#cr').value||0;
+    if(!q)return err('اكتب نص السؤال');
+    if(k=='tf')o=['صح','خطأ'];
+    else if(k=='match'){c=0;o=[...document.querySelectorAll('#prs>div')].map(d=>[d.children[0].value.trim(),d.children[1].value.trim()]).filter(x=>x[0]&&x[1]);if(o.length<2)return err('أدخل زوجين على الأقل')}
+    else{o=trim([...document.querySelectorAll('.op')].map(x=>x.value.trim()));if(k=='fill')o=o.slice(0,3);
+      if(o.length<(k=='fill'?3:2)||o.includes('')||!o[c])return err(k=='fill'?'اكتب 3 كلمات والإجابة الصحيحة واحدة منها':'اكتب خيارين على الأقل بدون فراغات، والإجابة الصحيحة يجب أن تكون خياراً مكتوباً');
+      if(k=='fill'&&!q.includes('___'))return err('ضع ___ مكان الفراغ في الجملة')}
+    const row={quiz_id:id,q,kind:k,opts:o,correct:c,secs:Math.min(120,Math.max(5,+$('#sc').value||20)),pos:e?e.pos:qs.length};
     const {error}=e?await db.from('questions').update(row).eq('id',e.id):await db.from('questions').insert(row);
-    error?$('#er').textContent=error.message:editor(id);
+    error?err(error.message):editor(id);
   };
   $('#imp').onclick=async()=>{
     const rows=$('#im').value.split('\n').map(l=>l.split(/\t|,/).map(x=>x.trim())).filter(r=>r.length>=4&&r[0]).map((r,i)=>{
-      const o=trim(r.slice(1,5)), c=(parseInt(r[5])||1)-1; return o.length>=2&&o[c]?{quiz_id:id,q:r[0],opts:o,correct:c,secs:Math.min(120,Math.max(5,parseInt(r[6])||20)),pos:qs.length+i}:null}).filter(Boolean);
-    if(!rows.length)return $('#er').textContent='لم يتم العثور على أسطر صالحة';
-    await db.from('questions').insert(rows); editor(id);
+      const o=trim(r.slice(1,5)),c=(parseInt(r[5])||1)-1;return o.length>=2&&o[c]?{quiz_id:id,q:r[0],opts:o,correct:c,secs:Math.min(120,Math.max(5,parseInt(r[6])||20)),pos:qs.length+i}:null}).filter(Boolean);
+    if(!rows.length)return err('لم يتم العثور على أسطر صالحة');
+    await db.from('questions').insert(rows);editor(id);
   };
   bind({e:x=>editor(id,x),d:async x=>{if(confirm('حذف السؤال؟')){await db.from('questions').delete().eq('id',x);editor(id)}}});
   $('#bk').onclick=()=>setTimeout(teacher);
-}
-
-/* ================= شاشة السباق المباشر (شاشة العرض) ================= */
-async function run(id){
-  const {data:qs}=await db.from('questions').select('*').eq('quiz_id',id).order('pos').order('id');
-  if(!qs.length)return alert('أضف أسئلة أولاً');
-  const {data:s,error}=await db.from('sessions').insert({quiz_id:id,code:String(100000+Math.random()*900000|0),total:qs.length}).select().single();
-  if(error)return alert(error.message);
-  host(s,qs);
-}
-async function host(s,qs){
-  clear(); const P=new Map(), link=location.origin+location.pathname+'?c='+s.code, mx=qs.length*1100, H=26; let ans=0;
-  const {data:ps}=await db.from('players').select('*').eq('session_id',s.id); ps.forEach(p=>P.set(p.id,p));
-  const gates=Array.from({length:qs.length},(_,k)=>`<div class=gate style="right:${(k+1)/qs.length*78+2}%"></div>`).join('')+'<div class=fin>🏁</div>';
-  const draw=hid=>{
-    const t=$('#trk'); if(!t)return;
-    const L=[...P.values()].sort((a,b)=>b.score-a.score||a.name.localeCompare(b.name)); t.style.height=L.length*H+8+'px';
-    L.forEach((p,i)=>{
-      let e=document.getElementById('p'+p.id); if(!e){e=document.createElement('div');e.id='p'+p.id;e.className='pl';t.appendChild(e)}
-      e.textContent=p.avatar+' '+p.name+' · '+p.score; e.style.top=i*H+4+'px'; e.style.right=Math.min(1,p.score/mx)*78+2+'%';
-      if(p.id==hid){e.classList.remove('hit');void e.offsetWidth;e.classList.add('hit');setTimeout(()=>e.classList.remove('hit'),1500)}
-    });
-  };
-  const set=async(st,qi)=>{const {error}=await db.rpc('host_set',{p_session:s.id,p_state:st,p_qi:qi});if(error)return alert(error.message);s.state=st;s.qi=qi;ui()};
-  const end=()=>{if(s.state!='question')return;clearInterval(tm);const q=s.qi;s.state='ending';set('reveal',q)};
-  const next=async()=>{
-    if(s.qi+1>=qs.length)return set('finished',s.qi);
-    ans=0; await set('question',s.qi+1); const t0=Date.now(), q=qs[s.qi];
-    clearInterval(tm); tm=setInterval(()=>{const r=q.secs*1000-(Date.now()-t0);const b=$('#tb'),tt=$('#tt');
-      if(b)b.style.width=Math.max(0,r/(q.secs*10))+'%'; if(tt)tt.textContent=Math.max(0,Math.ceil(r/1000)); if(r<=0)end()},200);
-  };
-  const podium=async()=>{
-    const {data:L}=await db.from('players').select('*').eq('session_id',s.id).order('score',{ascending:false}), t=L.slice(0,3);
-    view(`<div class=c><h1 style="font-size:44px">🏆 الفائزون 🏆</h1><div class=pod>${[1,0,2].map(i=>t[i]?`<div style="height:${[300,220,160][i]}px;background:${['#facc15','#cbd5e1','#d97706'][i]};color:#222"><div style="font-size:44px">${t[i].avatar}</div>${['🥇','🥈','🥉'][i]}<br>${esc(t[i].name)}<br>${t[i].score}</div>`:'<div style="background:none"></div>').join('')}</div>
-    <button class=b data-a=r>📊 التقرير</button><button class="b g" data-a=h>الرئيسية</button></div>`);
-    bind({r:()=>report(s.id),h:teacher}); boom();
-  };
-  const ui=()=>{
-    const q=qs[s.qi]; let h;
-    if(s.state=='lobby')h=`<div class="card w c"><div>ادخلوا من الرابط أو اكتبوا الرمز:<br><b dir=ltr>${esc(link)}</b></div><div class=code>${s.code}</div><b>👥 ${P.size} متسابق</b><div>${[...P.values()].map(p=>`<span class=row style="display:inline-flex">${p.avatar} ${esc(p.name)} <button class="b s r" data-a=k data-i=${p.id}>✖</button></span>`).join(' ')}</div><button class=b data-a=n>🚀 ابدأ السباق</button></div>`;
-    else if(s.state=='question')h=`<div class="card w"><div class=bar><i id=tb></i></div><div style="display:flex;justify-content:space-between"><b>سؤال ${s.qi+1} من ${qs.length}</b><b id=tt style="font-size:28px">${q.secs}</b><b>✋ <span id=an>0/${P.size}</span></b></div><h2 class=c>${esc(q.q)}</h2><div class=g>${q.opts.map((o,i)=>`<div class=o style="background:${COL[i]}">${SH[i]} ${esc(o)}</div>`).join('')}</div><button class="b g" data-a=e>⏭ إنهاء السؤال</button></div>`;
-    else if(s.state=='reveal')h=`<div class="card w"><h3 class=c>${esc(q.q)}</h3><div class=g>${q.opts.map((o,i)=>`<div class="o ${i==q.correct?'ok':'no'}" style="background:${COL[i]}">${SH[i]} ${esc(o)} ${i==q.correct?'✅':''}</div>`).join('')}</div><button class=b data-a=n>${s.qi+1<qs.length?'السؤال التالي ▶':'🏆 النتيجة النهائية'}</button></div>`;
-    else return podium();
-    view(h+'<div class=tr id=trk>'+gates+'</div>'); draw();
-    bind({k:id=>db.from('players').delete().eq('id',id).then(()=>{P.delete(id);ui()}),n:next,e:end});
-  };
-  sub('players','session_id=eq.'+s.id,e=>{
-    const p=e.new; if(!p||!p.id)return; const o=P.get(p.id); P.set(p.id,p);
-    s.state=='lobby'?ui():draw(o&&p.hit>o.hit?p.id:null);
-  });
-  sub('answers','session_id=eq.'+s.id,e=>{
-    if(e.new?.qi!=s.qi)return; ans++; const el=$('#an'); if(el)el.textContent=ans+'/'+P.size;
-    if(s.state=='question'&&P.size&&ans>=P.size)end();
-  });
-  ui();
 }
 
 /* ================= التقارير ================= */
@@ -241,7 +143,8 @@ async function detail(sid){
 }
 
 if(!SB_URL.startsWith('PUT'))db=supabase.createClient(SB_URL,SB_KEY);
-addEventListener('hashchange',route); route();
+
 </script>
+<script src="race.js"></script>
 </body>
 </html>
