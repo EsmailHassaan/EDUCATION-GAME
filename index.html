@@ -1,64 +1,317 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>سباق المعرفة</title>
-<style>
-:root{--a:#facc15}
-*{box-sizing:border-box;font-family:Tahoma,Arial,sans-serif}
-body{margin:0;background:linear-gradient(160deg,#1e1b4b,#4c1d95);color:#fff;min-height:100vh}
-#app{max-width:1100px;margin:auto;padding:14px}
-.c{text-align:center}
-.card{background:#ffffff14;border-radius:18px;padding:18px;margin:12px auto;max-width:520px}
-.card.w{max-width:none}
-input,select,textarea{width:100%;padding:12px;margin:6px 0;border-radius:10px;border:0;font-size:16px}
-.b{background:var(--a);color:#222;border:0;border-radius:12px;padding:12px 20px;font-size:17px;font-weight:700;cursor:pointer;margin:4px}
-.b.s{padding:6px 12px;font-size:14px}.b.r{background:#ef4444;color:#fff}.b.g{background:#ffffff30;color:#fff}
-.big{font-size:64px}.code{font-size:56px;letter-spacing:8px;color:var(--a);font-weight:800}
-.er{color:#fca5a5}.sm{color:#c4b5fd;font-size:14px}
-.g{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.o{border:0;border-radius:14px;color:#fff;font-size:20px;padding:22px 8px;cursor:pointer;font-weight:700;text-align:center}
-.o:disabled{opacity:.5}.o.ok{outline:5px solid #fff}.o.no{opacity:.35}
-.bar{height:10px;background:#ffffff30;border-radius:9px;overflow:hidden;margin-bottom:12px}
-.bar i{display:block;height:100%;background:var(--a);width:100%}
-.row{display:flex;gap:8px;align-items:center;justify-content:space-between;background:#ffffff14;border-radius:10px;padding:8px 12px;margin:5px 0;text-align:right}
-.tr{position:relative;background:#0005;border-radius:14px;margin-top:10px;overflow:hidden;background-image:repeating-linear-gradient(#0000 0 23px,#ffffff12 23px 24px)}
-.pl{position:absolute;height:24px;line-height:24px;white-space:nowrap;font-size:14px;transition:right 1s,top 1s;background:#0007;border-radius:12px;padding:0 8px}
-.hit{animation:sh .6s;background:#ef4444}.hit::after{content:' 💥'}
-@keyframes sh{25%{transform:translateX(-14px)}75%{transform:translateX(14px)}}
-.gate{position:absolute;top:0;bottom:0;width:4px;background:repeating-linear-gradient(#facc15 0 8px,#0000 8px 16px);opacity:.5}
-.fin{position:absolute;left:6px;top:4px;font-size:26px}
-.pod{display:flex;direction:ltr;align-items:flex-end;justify-content:center;gap:10px;margin:20px 0}
-.pod>div{width:28%;border-radius:14px 14px 0 0;padding-top:8px;font-weight:800;font-size:18px;animation:up 1.2s both}
-@keyframes up{from{transform:translateY(120%);opacity:0}}
-.pct{height:10px;border-radius:5px;background:#10b981}
-@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-</style>
-</head>
-<body>
-<div id="app"></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
-<script>
-// ====== الإعدادات: ضع بيانات مشروعك من Supabase > Settings > API ======
-const SB_URL='https://rdgmlkdhslqtmexfhvgm.supabase.co', SB_KEY='sb_publishable_1GEYHBtvQAAYploRcj7Q4Q_CbIDqY3_';
-// ======================================================================
-const $=s=>document.querySelector(s), app=$('#app');
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const AV=['🦊','🐯','🦁','🐼','🐸','🦄','🐙','🦖','🚀','🐲','🦅','🐬'];
-const COL=['#ef4444','#3b82f6','#f59e0b','#10b981'], SH=['▲','◆','●','■'];
-const view=h=>app.innerHTML=h;
-const bind=m=>document.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>m[b.dataset.a](b.dataset.i));
-const boom=()=>{if(!window.confetti)return;const e=Date.now()+6000;(function f(){confetti({particleCount:6,angle:60,spread:70,origin:{x:0}});confetti({particleCount:6,angle:120,spread:70,origin:{x:1}});if(Date.now()<e)requestAnimationFrame(f)})()};
-let db,chan=[],tm;
-const clear=()=>{chan.forEach(c=>db.removeChannel(c));chan=[];clearInterval(tm)};
-const sub=(table,filter,fn)=>chan.push(db.channel(table+Math.random()).on('postgres_changes',{event:'*',schema:'public',table,filter},fn).subscribe());
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>سباق المعرفة</title>
+    <style>
+      :root {
+        --a: #facc15;
+      }
+      * {
+        box-sizing: border-box;
+        font-family: Tahoma, Arial, sans-serif;
+      }
+      body {
+        margin: 0;
+        background: linear-gradient(160deg, #1e1b4b, #4c1d95);
+        color: #fff;
+        min-height: 100vh;
+      }
+      #app {
+        max-width: 1100px;
+        margin: auto;
+        padding: 14px;
+      }
+      .c {
+        text-align: center;
+      }
+      .card {
+        background: #ffffff14;
+        border-radius: 18px;
+        padding: 18px;
+        margin: 12px auto;
+        max-width: 520px;
+      }
+      .card.w {
+        max-width: none;
+      }
+      input,
+      select,
+      textarea {
+        width: 100%;
+        padding: 12px;
+        margin: 6px 0;
+        border-radius: 10px;
+        border: 0;
+        font-size: 16px;
+      }
+      .b {
+        background: var(--a);
+        color: #222;
+        border: 0;
+        border-radius: 12px;
+        padding: 12px 20px;
+        font-size: 17px;
+        font-weight: 700;
+        cursor: pointer;
+        margin: 4px;
+      }
+      .b.s {
+        padding: 6px 12px;
+        font-size: 14px;
+      }
+      .b.r {
+        background: #ef4444;
+        color: #fff;
+      }
+      .b.g {
+        background: #ffffff30;
+        color: #fff;
+      }
+      .big {
+        font-size: 64px;
+      }
+      .code {
+        font-size: 56px;
+        letter-spacing: 8px;
+        color: var(--a);
+        font-weight: 800;
+      }
+      .er {
+        color: #fca5a5;
+      }
+      .sm {
+        color: #c4b5fd;
+        font-size: 14px;
+      }
+      .g {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .o {
+        border: 0;
+        border-radius: 14px;
+        color: #fff;
+        font-size: 20px;
+        padding: 22px 8px;
+        cursor: pointer;
+        font-weight: 700;
+        text-align: center;
+      }
+      .o:disabled {
+        opacity: 0.5;
+      }
+      .o.ok {
+        outline: 5px solid #fff;
+      }
+      .o.no {
+        opacity: 0.35;
+      }
+      .bar {
+        height: 10px;
+        background: #ffffff30;
+        border-radius: 9px;
+        overflow: hidden;
+        margin-bottom: 12px;
+      }
+      .bar i {
+        display: block;
+        height: 100%;
+        background: var(--a);
+        width: 100%;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: space-between;
+        background: #ffffff14;
+        border-radius: 10px;
+        padding: 8px 12px;
+        margin: 5px 0;
+        text-align: right;
+      }
+      .tr {
+        position: relative;
+        background: #0005;
+        border-radius: 14px;
+        margin-top: 10px;
+        overflow: hidden;
+        background-image: repeating-linear-gradient(
+          #0000 0 23px,
+          #ffffff12 23px 24px
+        );
+      }
+      .pl {
+        position: absolute;
+        height: 24px;
+        line-height: 24px;
+        white-space: nowrap;
+        font-size: 14px;
+        transition:
+          right 1s,
+          top 1s;
+        background: #0007;
+        border-radius: 12px;
+        padding: 0 8px;
+      }
+      .hit {
+        animation: sh 0.6s;
+        background: #ef4444;
+      }
+      .hit::after {
+        content: " 💥";
+      }
+      @keyframes sh {
+        25% {
+          transform: translateX(-14px);
+        }
+        75% {
+          transform: translateX(14px);
+        }
+      }
+      .gate {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: repeating-linear-gradient(#facc15 0 8px, #0000 8px 16px);
+        opacity: 0.5;
+      }
+      .fin {
+        position: absolute;
+        left: 6px;
+        top: 4px;
+        font-size: 26px;
+      }
+      .pod {
+        display: flex;
+        direction: ltr;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 10px;
+        margin: 20px 0;
+      }
+      .pod > div {
+        width: 28%;
+        border-radius: 14px 14px 0 0;
+        padding-top: 8px;
+        font-weight: 800;
+        font-size: 18px;
+        animation: up 1.2s both;
+      }
+      @keyframes up {
+        from {
+          transform: translateY(120%);
+          opacity: 0;
+        }
+      }
+      .pct {
+        height: 10px;
+        border-radius: 5px;
+        background: #10b981;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <script>
+      // ====== الإعدادات: ضع بيانات مشروعك من Supabase > Settings > API ======
+      const SB_URL = "https://rdgmlkdhslqtmexfhvgm.supabase.co",
+        SB_KEY = "sb_publishable_1GEYHBtvQAAYploRcj7Q4Q_CbIDqY3_";
+      // ======================================================================
+      const $ = (s) => document.querySelector(s),
+        app = $("#app");
+      const esc = (s) =>
+        String(s ?? "").replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c],
+        );
+      const AV = [
+        "🦊",
+        "🐯",
+        "🦁",
+        "🐼",
+        "🐸",
+        "🦄",
+        "🐙",
+        "🦖",
+        "🚀",
+        "🐲",
+        "🦅",
+        "🐬",
+      ];
+      const COL = ["#ef4444", "#3b82f6", "#f59e0b", "#10b981"],
+        SH = ["▲", "◆", "●", "■"];
+      const view = (h) => (app.innerHTML = h);
+      const bind = (m) =>
+        document
+          .querySelectorAll("[data-a]")
+          .forEach((b) => (b.onclick = () => m[b.dataset.a](b.dataset.i)));
+      const boom = () => {
+        if (!window.confetti) return;
+        const e = Date.now() + 6000;
+        (function f() {
+          confetti({
+            particleCount: 6,
+            angle: 60,
+            spread: 70,
+            origin: { x: 0 },
+          });
+          confetti({
+            particleCount: 6,
+            angle: 120,
+            spread: 70,
+            origin: { x: 1 },
+          });
+          if (Date.now() < e) requestAnimationFrame(f);
+        })();
+      };
+      let db,
+        chan = [],
+        tm;
+      const clear = () => {
+        chan.forEach((c) => db.removeChannel(c));
+        chan = [];
+        clearInterval(tm);
+      };
+      const sub = (table, filter, fn) =>
+        chan.push(
+          db
+            .channel(table + Math.random())
+            .on(
+              "postgres_changes",
+              { event: "*", schema: "public", table, filter },
+              fn,
+            )
+            .subscribe(),
+        );
 
-function route(){
-  if(SB_URL.startsWith('PUT'))return view('<div class="card c"><h2>⚙️ أضف بيانات Supabase في أعلى الكود</h2></div>');
-  clear(); location.hash.startsWith('#/t')?teacher():student();
-}
+      function route() {
+        if (SB_URL.startsWith("PUT"))
+          return view(
+            '<div class="card c"><h2>⚙️ أضف بيانات Supabase في أعلى الكود</h2></div>',
+          );
+        clear();
+        location.hash.startsWith("#/t") ? teacher() : student();
+      }
 
 /* ================= لوحة المعلم ================= */
 async function teacher(){
